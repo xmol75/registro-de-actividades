@@ -1,0 +1,5 @@
+{
+  "name": "Registro de prolongaciones HUSE",
+  "description": "Aplicación web para registrar y seguir prolongaciones HUSE y su estado de pago.",
+  "requestFramePermissions": []
+}
