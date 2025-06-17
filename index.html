@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 1. Add the base tag -->
+    <base href="/registo-de-actividades/" />
     <title>Registro de prolongaciones HUSE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🩺</text></svg>">
@@ -16,12 +18,12 @@
   }
 }
 </script>
-  <!-- 1. Añadir Babel Standalone -->
+  <!-- 2. Añadir Babel Standalone -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
   <body class="bg-slate-50 text-slate-800">
     <div id="root"></div>
-    <!-- 2. Modificar el script para que Babel lo procese -->
+    <!-- 3. Modificar el script para que Babel lo procese -->
     <script type="text/babel" data-presets="env,react,typescript" data-type="module" src="./index.tsx"></script>
   </body>
 </html>
