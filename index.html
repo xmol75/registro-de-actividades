@@ -32,27 +32,27 @@
 
         if (typeof window.importShim === 'undefined' || typeof Babel === 'undefined') {
           console.error("Fetch Hook Setup: Error crítico: importShim o Babel no se cargaron a tiempo.");
-          document.body.innerHTML = '<div style="color:red;padding:20px;">Error crítico al cargar dependencias (importShim o Babel). Revisa la consola.</div>';
+          document.getElementById('root').innerHTML = '<div style="color:red;padding:20px;">Error crítico al cargar dependencias (importShim o Babel). Revisa la consola.</div>';
           return;
         }
         console.log("Fetch Hook Setup: importShim y Babel están listos.");
 
-        // Definir el fetch hook
+        // Definir el fetch hook para importaciones DENTRO de módulos
         window.importShim.fetch = async function(url) {
           const actualUrl = typeof url === 'string' ? url : url.href; 
           
           try {
-            console.log("Fetch Hook: Interceptando URL:", actualUrl);
+            console.log("Fetch Hook (importShim): Interceptando URL:", actualUrl);
 
             const response = await fetch(url); 
 
             if (!response.ok) {
               const responseBodyText = await response.text();
-              console.error(`Fetch Hook: Falló el fetch original para ${actualUrl}. Estado: ${response.status} ${response.statusText}. Cuerpo (si existe):`, responseBodyText.substring(0, 500)); // Log more of the body
+              console.error(`Fetch Hook (importShim): Falló el fetch original para ${actualUrl}. Estado: ${response.status} ${response.statusText}. Cuerpo:`, responseBodyText.substring(0, 500));
               
               if (actualUrl.endsWith('.tsx') || actualUrl.endsWith('.ts')) {
                 const errorScriptContent = `
-                  console.error("Fetch Hook (Error Handler): Módulo ${actualUrl} no pudo ser cargado. Estado: ${response.status}. El servidor respondió con: ${responseBodyText.substring(0, 200).replace(/`/g, '\\`').replace(/\${/g, '\\${') + '...'}");
+                  console.error("Fetch Hook (importShim) Error Handler: Módulo ${actualUrl} no pudo ser cargado. Estado: ${response.status}. El servidor respondió con: ${responseBodyText.substring(0, 200).replace(/`/g, '\\`').replace(/\${/g, '\\${') + '...'}");
                   throw new Error("Módulo ${actualUrl.replace(/"/g, '\\"')} no encontrado o error del servidor (Estado: ${response.status}).");
                 `;
                 return new Response(new Blob([errorScriptContent], { type: 'application/javascript' }), {
@@ -68,7 +68,7 @@
             }
 
             if (actualUrl.endsWith('.tsx') || actualUrl.endsWith('.ts')) {
-              console.log(`Fetch Hook: ${actualUrl} es TSX/TS. Intentando transpilar.`);
+              console.log(`Fetch Hook (importShim): ${actualUrl} es TSX/TS. Intentando transpilar.`);
               const source = await response.text();
               try {
                 const { code } = Babel.transform(source, {
@@ -76,28 +76,28 @@
                   filename: actualUrl, 
                   sourceMaps: "inline", 
                 });
-                console.log(`Fetch Hook: Transpilación exitosa para ${actualUrl}.`);
+                console.log(`Fetch Hook (importShim): Transpilación exitosa para ${actualUrl}.`);
                 return new Response(new Blob([code || ''], { type: 'application/javascript' }), {
                   status: 200,
                   headers: { 'Content-Type': 'application/javascript' }
                 });
               } catch (e) {
-                console.error(`Fetch Hook: Falló la transpilación de Babel para ${actualUrl}:`, e);
+                console.error(`Fetch Hook (importShim): Falló la transpilación de Babel para ${actualUrl}:`, e);
                 const errorMsg = (e.message || "Error desconocido de Babel").replace(/"/g, '\\"').replace(/\n/g, '\\n');
-                const errorScript = `console.error("Error de transpilación en ${actualUrl.replace(/"/g, '\\"')} (via fetch hook): ${errorMsg}"); throw new Error("Error de transpilación en ${actualUrl.replace(/"/g, '\\"')}: ${errorMsg}");`;
+                const errorScript = `console.error("Error de transpilación en ${actualUrl.replace(/"/g, '\\"')} (via importShim fetch hook): ${errorMsg}"); throw new Error("Error de transpilación en ${actualUrl.replace(/"/g, '\\"')}: ${errorMsg}");`;
                 return new Response(new Blob([errorScript], { type: 'application/javascript' }), {
                   status: 200, 
                   headers: { 'Content-Type': 'application/javascript' }
                 });
               }
             }
-            console.log(`Fetch Hook: Pasando ${actualUrl} sin transpilar (no es TSX/TS).`);
+            console.log(`Fetch Hook (importShim): Pasando ${actualUrl} sin transpilar (no es TSX/TS).`);
             return response; 
           } catch (hookError) {
-            console.error("Fetch Hook: Error INESPERADO dentro del hook:", hookError, "para URL:", actualUrl);
+            console.error("Fetch Hook (importShim): Error INESPERADO dentro del hook:", hookError, "para URL:", actualUrl);
             const errorMsg = (hookError.message || "Error desconocido en fetch hook").replace(/"/g, '\\"').replace(/\n/g, '\\n');
             const urlString = actualUrl.replace(/"/g, '\\"');
-            const errorScript = `console.error("Error crítico en fetch hook para ${urlString}: ${errorMsg}"); throw new Error("Error crítico en fetch hook para ${urlString}: ${errorMsg}");`;
+            const errorScript = `console.error("Error crítico en importShim fetch hook para ${urlString}: ${errorMsg}"); throw new Error("Error crítico en importShim fetch hook para ${urlString}: ${errorMsg}");`;
             return new Response(new Blob([errorScript], { type: 'application/javascript' }), {
               status: 200, 
               headers: { 'Content-Type': 'application/javascript' }
@@ -106,22 +106,66 @@
         };
         console.log("Fetch Hook Setup: Hook para importShim.fetch definido.");
 
-        // 5. Dinámicamente cargar el script principal de la aplicación
-        console.log("Dynamic Load: Intentando cargar index.tsx como módulo...");
-        const mainScript = document.createElement('script');
-        mainScript.type = 'module';
-        mainScript.src = './index.tsx'; // Ruta relativa, <base> se encargará
-        mainScript.onerror = () => {
-          console.error("Dynamic Load: Error al cargar el script principal index.tsx.");
-          const rootEl = document.getElementById('root');
-          if (rootEl) rootEl.innerHTML = '<div style="color:red;padding:20px;">Error crítico al cargar dinámicamente index.tsx. Revisa la consola para más detalles.</div>';
-        };
-        mainScript.onload = () => {
-            console.log("Dynamic Load: index.tsx cargado (esto no significa que se haya ejecutado sin errores internos, solo que el tag &lt;script&gt; disparó onload).");
-        };
-        document.body.appendChild(mainScript);
-        console.log("Dynamic Load: Tag de script para index.tsx añadido al DOM.");
+        // 5. Dinámicamente cargar y transpirar el script principal de la aplicación
+        console.log("Dynamic Load: Intentando cargar y transpirar index.tsx...");
+        const rootEl = document.getElementById('root');
+        let objectURL = null;
 
+        try {
+          const mainScriptPath = './index.tsx'; // Ruta relativa, <base> se encargará
+          console.log("Dynamic Load: Fetching", mainScriptPath);
+          const response = await fetch(mainScriptPath);
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Dynamic Load: Falló el fetch para ${mainScriptPath}. Estado: ${response.status}. Cuerpo: ${errorText.substring(0,500)}`);
+            if (rootEl) rootEl.innerHTML = `<div style="color:red;padding:20px;">Error crítico: No se pudo encontrar ${mainScriptPath} (Estado: ${response.status}). Revisa la ruta y el despliegue.</div>`;
+            return;
+          }
+          console.log("Dynamic Load: Fetched", mainScriptPath);
+
+          const source = await response.text();
+          console.log("Dynamic Load: Transpiling", mainScriptPath);
+          const { code } = Babel.transform(source, {
+            presets: ["react", "typescript"],
+            filename: mainScriptPath, // Importante para que Babel sepa que es TSX y para source maps
+            sourceMaps: "inline",
+          });
+          console.log("Dynamic Load: Transpiled", mainScriptPath);
+
+          const blob = new Blob([code || ''], { type: 'application/javascript' });
+          objectURL = URL.createObjectURL(blob);
+          console.log("Dynamic Load: Created Blob URL:", objectURL);
+
+          const mainScript = document.createElement('script');
+          mainScript.type = 'module';
+          mainScript.src = objectURL;
+          
+          mainScript.onload = () => {
+            console.log("Dynamic Load: index.tsx (desde Blob URL) cargado y ejecutado (onload disparado).");
+            if (objectURL) {
+              URL.revokeObjectURL(objectURL); // Limpiar el Object URL
+              console.log("Dynamic Load: Blob URL revocado.");
+            }
+          };
+          mainScript.onerror = () => {
+            console.error("Dynamic Load: Error al cargar el script principal index.tsx desde Blob URL.");
+            if (rootEl) rootEl.innerHTML = '<div style="color:red;padding:20px;">Error crítico al cargar dinámicamente index.tsx (desde Blob URL). Revisa la consola.</div>';
+            if (objectURL) {
+              URL.revokeObjectURL(objectURL); // Limpiar el Object URL incluso en error
+            }
+          };
+
+          document.body.appendChild(mainScript);
+          console.log("Dynamic Load: Tag de script para index.tsx (con Blob URL) añadido al DOM.");
+
+        } catch (error) {
+          console.error("Dynamic Load: Error catastrófico durante la carga/transpilación de index.tsx:", error);
+          if (rootEl) rootEl.innerHTML = `<div style="color:red;padding:20px;">Error catastrófico al procesar index.tsx: ${error.message}. Revisa la consola.</div>`;
+           if (objectURL) { // Asegurarse de revocar si se creó antes del error
+            URL.revokeObjectURL(objectURL);
+          }
+        }
       })();
     </script>
 
