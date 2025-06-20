@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { SurgicalActivity } from '../types';
+import { SurgicalActivity } from '../types.ts';
 
 interface AddSurgeryFormProps {
   onSubmit: (activityData: SurgicalActivity | Omit<SurgicalActivity, 'id' | 'isPaid' | 'mesCobro'>) => void;

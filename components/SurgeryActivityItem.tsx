@@ -1,5 +1,5 @@
 import React from 'react';
-import { SurgicalActivity } from '../types';
+import { SurgicalActivity } from '../types.ts';
 
 interface SurgeryActivityItemProps {
   activity: SurgicalActivity;

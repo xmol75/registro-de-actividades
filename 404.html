@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting...</title>
+  <script type="text/javascript">
+    // Define the base path of your application on GitHub Pages.
+    // This should match the 'href' in your <base> tag in index.html.
+    const basePath = '/registro-de-actividades/';
+
+    // Store the original path requested, in case your app needs it (optional).
+    // sessionStorage.setItem('ghPages_redirect_path', location.pathname);
+
+    // Redirect to the base path, preserving any URL hash.
+    // This ensures that index.html is loaded, and the SPA can take over.
+    location.replace(basePath + (location.hash || ''));
+  </script>
+</head>
+<body>
+  <p>If you are not redirected automatically, please <a id="home-link" href="/registro-de-actividades/">click here to go to the application</a>.</p>
+  <script type="text/javascript">
+    // Fallback link in case the redirect script itself has issues.
+    document.getElementById('home-link').href = basePath;
+  </script>
+</body>
+</html>

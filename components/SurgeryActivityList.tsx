@@ -1,6 +1,6 @@
 import React from 'react';
-import { SurgicalActivity } from '../types';
-import SurgeryActivityItem from './SurgeryActivityItem';
+import { SurgicalActivity } from '../types.ts';
+import SurgeryActivityItem from './SurgeryActivityItem.tsx';
 
 interface SurgeryActivityListProps {
   activities: SurgicalActivity[];

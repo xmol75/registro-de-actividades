@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import AddSurgeryForm from './AddSurgeryForm';
-import SurgeryActivityList from './SurgeryActivityList';
-import MonthYearInputDialog from './MonthYearInputDialog';
-import { SurgicalActivity, ActivityFilter } from '../types'; // Adjusted path
-import useLocalStorage from '../hooks/useLocalStorage'; // Adjusted path
+import AddSurgeryForm from './AddSurgeryForm.tsx';
+import SurgeryActivityList from './SurgeryActivityList.tsx';
+import MonthYearInputDialog from './MonthYearInputDialog.tsx';
+import { SurgicalActivity, ActivityFilter } from '../types.ts'; // Adjusted path
+import useLocalStorage from '../hooks/useLocalStorage.ts'; // Adjusted path
 
 interface ProlongacionesViewProps {
   navigateToMenu: () => void;

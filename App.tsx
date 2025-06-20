@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import MainMenu from './components/MainMenu';
-import ProlongacionesView from './components/ProlongacionesView';
-import { AppView } from './types';
+import MainMenu from './components/MainMenu.tsx';
+import ProlongacionesView from './components/ProlongacionesView.tsx';
+import { AppView } from './types.ts';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.MAIN_MENU);

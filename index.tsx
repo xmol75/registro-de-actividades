@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App'; // This should point to the Surgical Logger App.tsx
+import App from './App.tsx'; // This should point to the Surgical Logger App.tsx
 
 const rootElement = document.getElementById('root');
 
@@ -29,7 +29,7 @@ if (!rootElement) {
       <h2>Error al Renderizar React</h2>
       <p>Ocurrió un error al iniciar la aplicación React.</p>
       <p><strong>Mensaje:</strong> ${(error as Error).message}</p>
-      <p>Por favor, revisa la consola del desarrollador (F12) para ver el stack trace completo y más detalles.</p>
+      <p>Por favor, revisa la consola del desarrollador (F12) para ver el stack trace completo y más detalles. Asegúrate de que todas las importaciones de archivos locales incluyan la extensión (.ts o .tsx).</p>
     </div>`;
   }
 }

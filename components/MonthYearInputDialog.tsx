@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SurgicalActivity } from '../types';
+import { SurgicalActivity } from '../types.ts';
 
 interface MonthYearInputDialogProps {
   activity: SurgicalActivity;
