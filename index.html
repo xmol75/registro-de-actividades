@@ -22,60 +22,78 @@
         let attempts = 0;
         const maxAttempts = 200; // Esperar máximo 10 segundos (200 * 50ms)
         while ((typeof window.importShim === 'undefined' || typeof Babel === 'undefined') && attempts < maxAttempts) {
-          if (typeof window.importShim === 'undefined') console.log("Esperando por importShim...");
-          if (typeof Babel === 'undefined') console.log("Esperando por Babel...");
-          await new Promise(resolve => setTimeout(resolve, 50)); // Reintentar cada 50ms
+          if (typeof window.importShim === 'undefined') console.log("Fetch Hook Setup: Esperando por importShim...");
+          if (typeof Babel === 'undefined') console.log("Fetch Hook Setup: Esperando por Babel...");
+          await new Promise(resolve => setTimeout(resolve, 50)); 
           attempts++;
         }
 
         if (typeof window.importShim === 'undefined' || typeof Babel === 'undefined') {
-          console.error("Error crítico: importShim o Babel no se cargaron a tiempo.");
+          console.error("Fetch Hook Setup: Error crítico: importShim o Babel no se cargaron a tiempo.");
           document.body.innerHTML = '<div style="color:red;padding:20px;">Error crítico al cargar dependencias (importShim o Babel). Revisa la consola.</div>';
           return;
         }
-        console.log("importShim y Babel están listos.");
+        console.log("Fetch Hook Setup: importShim y Babel están listos.");
 
         // Definir el fetch hook
         window.importShim.fetch = async function(url) {
           const actualUrl = typeof url === 'string' ? url : url.href; // Obtener URL como string
-          // console.log("importShim.fetch intentando cargar:", actualUrl);
+          
+          try {
+            console.log("Fetch Hook: Interceptando URL:", actualUrl);
 
-          const response = await fetch(url); // Realizar el fetch original
+            const response = await fetch(url); // Realizar el fetch original
 
-          if (!response.ok) {
-            console.error(`Fetch hook: Falló el fetch para ${actualUrl}. Estado: ${response.status} ${response.statusText}`);
-            return response; // Propagar errores de fetch (ej. 404)
-          }
-
-          if (actualUrl.endsWith('.tsx') || actualUrl.endsWith('.ts')) {
-            // console.log(`Fetch hook: Transpilando ${actualUrl} con Babel.`);
-            const source = await response.text();
-            try {
-              const { code } = Babel.transform(source, {
-                presets: ["react", "typescript"],
-                filename: actualUrl, // Importante para sourcemaps y mensajes de error
-                sourceMaps: "inline", // Opcional: para mejor depuración
-              });
-              // console.log(`Fetch hook: Código transpilado para ${actualUrl}:`, code ? code.substring(0, 200) + "..." : "Código vacío");
-              return new Response(new Blob([code || ''], { type: 'application/javascript' }), {
-                status: 200,
-                headers: { 'Content-Type': 'application/javascript' }
-              });
-            } catch (e) {
-              console.error(`Fetch hook: Falló la transpilación de Babel para ${actualUrl}:`, e);
-              // Devolver un script que lance el error en el navegador para visibilidad
-              const errorMsg = (e.message || "Error desconocido de Babel").replace(/"/g, '\\"').replace(/\n/g, '\\n');
-              const errorScript = `console.error("Error de transpilación en ${actualUrl.replace(/"/g, '\\"')} (via fetch hook): ${errorMsg}"); throw new Error("Error de transpilación en ${actualUrl.replace(/"/g, '\\"')}: ${errorMsg}");`;
-              return new Response(new Blob([errorScript], { type: 'application/javascript' }), {
-                status: 200, // Devolver 200 para que el navegador intente ejecutar y muestre el error
-                headers: { 'Content-Type': 'application/javascript' }
+            if (!response.ok) {
+              const responseBodyText = await response.text(); // Leer el cuerpo para logging
+              console.error(`Fetch Hook: Falló el fetch original para ${actualUrl}. Estado: ${response.status} ${response.statusText}. Cuerpo (si existe):`, responseBodyText);
+              // Recrear la respuesta original para propagar el error (ej. 404 HTML)
+              // Esto permitirá al navegador manejar el error de red como lo haría normalmente.
+              return new Response(responseBodyText, { 
+                status: response.status, 
+                statusText: response.statusText, 
+                headers: response.headers 
               });
             }
+
+            if (actualUrl.endsWith('.tsx') || actualUrl.endsWith('.ts')) {
+              console.log(`Fetch Hook: ${actualUrl} es TSX/TS. Intentando transpilar.`);
+              const source = await response.text();
+              try {
+                const { code } = Babel.transform(source, {
+                  presets: ["react", "typescript"],
+                  filename: actualUrl, // Importante para sourcemaps y mensajes de error
+                  sourceMaps: "inline", // Opcional: para mejor depuración
+                });
+                console.log(`Fetch Hook: Transpilación exitosa para ${actualUrl}.`);
+                return new Response(new Blob([code || ''], { type: 'application/javascript' }), {
+                  status: 200,
+                  headers: { 'Content-Type': 'application/javascript' }
+                });
+              } catch (e) {
+                console.error(`Fetch Hook: Falló la transpilación de Babel para ${actualUrl}:`, e);
+                const errorMsg = (e.message || "Error desconocido de Babel").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+                const errorScript = `console.error("Error de transpilación en ${actualUrl.replace(/"/g, '\\"')} (via fetch hook): ${errorMsg}"); throw new Error("Error de transpilación en ${actualUrl.replace(/"/g, '\\"')}: ${errorMsg}");`;
+                return new Response(new Blob([errorScript], { type: 'application/javascript' }), {
+                  status: 200, 
+                  headers: { 'Content-Type': 'application/javascript' }
+                });
+              }
+            }
+            console.log(`Fetch Hook: Pasando ${actualUrl} sin transpilar (no es TSX/TS).`);
+            return response; // Pasar otros tipos de archivo tal cual
+          } catch (hookError) {
+            console.error("Fetch Hook: Error INESPERADO dentro del hook:", hookError, "para URL:", actualUrl);
+            const errorMsg = (hookError.message || "Error desconocido en fetch hook").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+            const urlString = actualUrl.replace(/"/g, '\\"');
+            const errorScript = `console.error("Error crítico en fetch hook para ${urlString}: ${errorMsg}"); throw new Error("Error crítico en fetch hook para ${urlString}: ${errorMsg}");`;
+            return new Response(new Blob([errorScript], { type: 'application/javascript' }), {
+              status: 200, 
+              headers: { 'Content-Type': 'application/javascript' }
+            });
           }
-          // console.log(`Fetch hook: Pasando ${actualUrl} sin transpilar.`);
-          return response; // Pasar otros tipos de archivo tal cual
         };
-        console.log("Fetch hook para importShim definido.");
+        console.log("Fetch Hook Setup: Hook para importShim.fetch definido.");
       })();
     </script>
 
@@ -94,7 +112,8 @@
   <body class="bg-slate-50 text-slate-800">
     <div id="root">Cargando aplicación...</div>
     <!-- 5. Script principal de la aplicación, ahora como un módulo estándar -->
-    <!-- es-module-shims interceptará esto y usará el fetch hook -->
-    <script type="module" src="/registro-de-actividades/index.tsx"></script>
+    <!-- es-module-shims interceptará esto y usará el fetch hook.
+         La ruta es relativa y la etiqueta <base> la resolverá. -->
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>
