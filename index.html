@@ -4,27 +4,97 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- 1. Add the base tag - RESTAURADA PARA DESPLIEGUE EN GITHUB PAGES -->
     <base href="/registro-de-actividades/" />
     <title>Registro de prolongaciones HUSE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🩺</text></svg>">
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.1.0/",
-    "react": "https://esm.sh/react@^19.1.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
-    "uuid": "https://esm.sh/uuid@^9.0.1"
-  }
-}
-</script>
-  <!-- 2. Añadir Babel Standalone -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- 1. ES Module Shims (debe ir primero y ser síncrono o async pero gestionado) -->
+    <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js" crossorigin="anonymous"></script>
+
+    <!-- 2. Babel Standalone -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- 3. Custom Fetch Hook para Transpilación con es-module-shims -->
+    <script type="text/javascript">
+      (async () => {
+        // Esperar a que es-module-shims (importShim) y Babel estén cargados
+        let attempts = 0;
+        const maxAttempts = 200; // Esperar máximo 10 segundos (200 * 50ms)
+        while ((typeof window.importShim === 'undefined' || typeof Babel === 'undefined') && attempts < maxAttempts) {
+          if (typeof window.importShim === 'undefined') console.log("Esperando por importShim...");
+          if (typeof Babel === 'undefined') console.log("Esperando por Babel...");
+          await new Promise(resolve => setTimeout(resolve, 50)); // Reintentar cada 50ms
+          attempts++;
+        }
+
+        if (typeof window.importShim === 'undefined' || typeof Babel === 'undefined') {
+          console.error("Error crítico: importShim o Babel no se cargaron a tiempo.");
+          document.body.innerHTML = '<div style="color:red;padding:20px;">Error crítico al cargar dependencias (importShim o Babel). Revisa la consola.</div>';
+          return;
+        }
+        console.log("importShim y Babel están listos.");
+
+        // Definir el fetch hook
+        window.importShim.fetch = async function(url) {
+          const actualUrl = typeof url === 'string' ? url : url.href; // Obtener URL como string
+          // console.log("importShim.fetch intentando cargar:", actualUrl);
+
+          const response = await fetch(url); // Realizar el fetch original
+
+          if (!response.ok) {
+            console.error(`Fetch hook: Falló el fetch para ${actualUrl}. Estado: ${response.status} ${response.statusText}`);
+            return response; // Propagar errores de fetch (ej. 404)
+          }
+
+          if (actualUrl.endsWith('.tsx') || actualUrl.endsWith('.ts')) {
+            // console.log(`Fetch hook: Transpilando ${actualUrl} con Babel.`);
+            const source = await response.text();
+            try {
+              const { code } = Babel.transform(source, {
+                presets: ["react", "typescript"],
+                filename: actualUrl, // Importante para sourcemaps y mensajes de error
+                sourceMaps: "inline", // Opcional: para mejor depuración
+              });
+              // console.log(`Fetch hook: Código transpilado para ${actualUrl}:`, code ? code.substring(0, 200) + "..." : "Código vacío");
+              return new Response(new Blob([code || ''], { type: 'application/javascript' }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/javascript' }
+              });
+            } catch (e) {
+              console.error(`Fetch hook: Falló la transpilación de Babel para ${actualUrl}:`, e);
+              // Devolver un script que lance el error en el navegador para visibilidad
+              const errorMsg = (e.message || "Error desconocido de Babel").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+              const errorScript = `console.error("Error de transpilación en ${actualUrl.replace(/"/g, '\\"')} (via fetch hook): ${errorMsg}"); throw new Error("Error de transpilación en ${actualUrl.replace(/"/g, '\\"')}: ${errorMsg}");`;
+              return new Response(new Blob([errorScript], { type: 'application/javascript' }), {
+                status: 200, // Devolver 200 para que el navegador intente ejecutar y muestre el error
+                headers: { 'Content-Type': 'application/javascript' }
+              });
+            }
+          }
+          // console.log(`Fetch hook: Pasando ${actualUrl} sin transpilar.`);
+          return response; // Pasar otros tipos de archivo tal cual
+        };
+        console.log("Fetch hook para importShim definido.");
+      })();
+    </script>
+
+    <!-- 4. Import Map -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react/": "https://esm.sh/react@^19.1.0/",
+        "react": "https://esm.sh/react@^19.1.0",
+        "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+        "uuid": "https://esm.sh/uuid@^9.0.1"
+      }
+    }
+    </script>
 </head>
   <body class="bg-slate-50 text-slate-800">
-    <div id="root"></div>
-    <!-- 3. Modificar el script para que Babel lo procese -->
-    <script type="text/babel" data-presets="react,typescript" data-type="module" src="/registro-de-actividades/index.tsx"></script>
+    <div id="root">Cargando aplicación...</div>
+    <!-- 5. Script principal de la aplicación, ahora como un módulo estándar -->
+    <!-- es-module-shims interceptará esto y usará el fetch hook -->
+    <script type="module" src="/registro-de-actividades/index.tsx"></script>
   </body>
 </html>
