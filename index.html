@@ -45,10 +45,22 @@
             const response = await fetch(url); // Realizar el fetch original
 
             if (!response.ok) {
-              const responseBodyText = await response.text(); // Leer el cuerpo para logging
+              const responseBodyText = await response.text();
               console.error(`Fetch Hook: Falló el fetch original para ${actualUrl}. Estado: ${response.status} ${response.statusText}. Cuerpo (si existe):`, responseBodyText);
-              // Recrear la respuesta original para propagar el error (ej. 404 HTML)
-              // Esto permitirá al navegador manejar el error de red como lo haría normalmente.
+              
+              // Si el archivo es TSX/TS y no se encontró, devolvemos un módulo JS que tira un error.
+              // Esto evita el error de MIME type si el servidor devuelve HTML (ej. una página 404).
+              if (actualUrl.endsWith('.tsx') || actualUrl.endsWith('.ts')) {
+                const errorScriptContent = `
+                  console.error("Fetch Hook (Error Handler): Módulo ${actualUrl} no pudo ser cargado. Estado: ${response.status}. El servidor respondió con: ${responseBodyText.substring(0, 200).replace(/`/g, '\\`').replace(/\${/g, '\\${') + '...'}");
+                  throw new Error("Módulo ${actualUrl.replace(/"/g, '\\"')} no encontrado o error del servidor (Estado: ${response.status}).");
+                `;
+                return new Response(new Blob([errorScriptContent], { type: 'application/javascript' }), {
+                  status: 200, // Servimos como 200 OK, pero el contenido del script lanzará un error.
+                  headers: { 'Content-Type': 'application/javascript' }
+                });
+              }
+              // Para otros tipos de archivo, o si no es TSX/TS, devolvemos la respuesta original tal cual
               return new Response(responseBodyText, { 
                 status: response.status, 
                 statusText: response.statusText, 
@@ -62,8 +74,8 @@
               try {
                 const { code } = Babel.transform(source, {
                   presets: ["react", "typescript"],
-                  filename: actualUrl, // Importante para sourcemaps y mensajes de error
-                  sourceMaps: "inline", // Opcional: para mejor depuración
+                  filename: actualUrl, 
+                  sourceMaps: "inline", 
                 });
                 console.log(`Fetch Hook: Transpilación exitosa para ${actualUrl}.`);
                 return new Response(new Blob([code || ''], { type: 'application/javascript' }), {
@@ -81,7 +93,7 @@
               }
             }
             console.log(`Fetch Hook: Pasando ${actualUrl} sin transpilar (no es TSX/TS).`);
-            return response; // Pasar otros tipos de archivo tal cual
+            return response; 
           } catch (hookError) {
             console.error("Fetch Hook: Error INESPERADO dentro del hook:", hookError, "para URL:", actualUrl);
             const errorMsg = (hookError.message || "Error desconocido en fetch hook").replace(/"/g, '\\"').replace(/\n/g, '\\n');
