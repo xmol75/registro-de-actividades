@@ -9,23 +9,25 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🩺</text></svg>">
 
-    <!-- 1. ES Module Shims (debe ir primero y ser síncrono o async pero gestionado) -->
+    <!-- 1. ES Module Shims (debe ir primero) -->
     <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js" crossorigin="anonymous"></script>
 
     <!-- 2. Babel Standalone -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- 3. Custom Fetch Hook para Transpilación con es-module-shims -->
+    <!-- 3. Custom Fetch Hook para Transpilación con es-module-shims & Dynamic Script Load -->
     <script type="text/javascript">
       (async () => {
         // Esperar a que es-module-shims (importShim) y Babel estén cargados
         let attempts = 0;
         const maxAttempts = 200; // Esperar máximo 10 segundos (200 * 50ms)
+        console.log("Fetch Hook Setup: Iniciando espera por importShim y Babel...");
         while ((typeof window.importShim === 'undefined' || typeof Babel === 'undefined') && attempts < maxAttempts) {
-          if (typeof window.importShim === 'undefined') console.log("Fetch Hook Setup: Esperando por importShim...");
-          if (typeof Babel === 'undefined') console.log("Fetch Hook Setup: Esperando por Babel...");
           await new Promise(resolve => setTimeout(resolve, 50)); 
           attempts++;
+          if (attempts % 20 === 0) { // Log every second
+             console.log(`Fetch Hook Setup: Esperando... (importShim: ${typeof window.importShim !== 'undefined'}, Babel: ${typeof Babel !== 'undefined'})`);
+          }
         }
 
         if (typeof window.importShim === 'undefined' || typeof Babel === 'undefined') {
@@ -37,30 +39,27 @@
 
         // Definir el fetch hook
         window.importShim.fetch = async function(url) {
-          const actualUrl = typeof url === 'string' ? url : url.href; // Obtener URL como string
+          const actualUrl = typeof url === 'string' ? url : url.href; 
           
           try {
             console.log("Fetch Hook: Interceptando URL:", actualUrl);
 
-            const response = await fetch(url); // Realizar el fetch original
+            const response = await fetch(url); 
 
             if (!response.ok) {
               const responseBodyText = await response.text();
-              console.error(`Fetch Hook: Falló el fetch original para ${actualUrl}. Estado: ${response.status} ${response.statusText}. Cuerpo (si existe):`, responseBodyText);
+              console.error(`Fetch Hook: Falló el fetch original para ${actualUrl}. Estado: ${response.status} ${response.statusText}. Cuerpo (si existe):`, responseBodyText.substring(0, 500)); // Log more of the body
               
-              // Si el archivo es TSX/TS y no se encontró, devolvemos un módulo JS que tira un error.
-              // Esto evita el error de MIME type si el servidor devuelve HTML (ej. una página 404).
               if (actualUrl.endsWith('.tsx') || actualUrl.endsWith('.ts')) {
                 const errorScriptContent = `
                   console.error("Fetch Hook (Error Handler): Módulo ${actualUrl} no pudo ser cargado. Estado: ${response.status}. El servidor respondió con: ${responseBodyText.substring(0, 200).replace(/`/g, '\\`').replace(/\${/g, '\\${') + '...'}");
                   throw new Error("Módulo ${actualUrl.replace(/"/g, '\\"')} no encontrado o error del servidor (Estado: ${response.status}).");
                 `;
                 return new Response(new Blob([errorScriptContent], { type: 'application/javascript' }), {
-                  status: 200, // Servimos como 200 OK, pero el contenido del script lanzará un error.
+                  status: 200, 
                   headers: { 'Content-Type': 'application/javascript' }
                 });
               }
-              // Para otros tipos de archivo, o si no es TSX/TS, devolvemos la respuesta original tal cual
               return new Response(responseBodyText, { 
                 status: response.status, 
                 statusText: response.statusText, 
@@ -106,6 +105,23 @@
           }
         };
         console.log("Fetch Hook Setup: Hook para importShim.fetch definido.");
+
+        // 5. Dinámicamente cargar el script principal de la aplicación
+        console.log("Dynamic Load: Intentando cargar index.tsx como módulo...");
+        const mainScript = document.createElement('script');
+        mainScript.type = 'module';
+        mainScript.src = './index.tsx'; // Ruta relativa, <base> se encargará
+        mainScript.onerror = () => {
+          console.error("Dynamic Load: Error al cargar el script principal index.tsx.");
+          const rootEl = document.getElementById('root');
+          if (rootEl) rootEl.innerHTML = '<div style="color:red;padding:20px;">Error crítico al cargar dinámicamente index.tsx. Revisa la consola para más detalles.</div>';
+        };
+        mainScript.onload = () => {
+            console.log("Dynamic Load: index.tsx cargado (esto no significa que se haya ejecutado sin errores internos, solo que el tag &lt;script&gt; disparó onload).");
+        };
+        document.body.appendChild(mainScript);
+        console.log("Dynamic Load: Tag de script para index.tsx añadido al DOM.");
+
       })();
     </script>
 
@@ -123,9 +139,6 @@
 </head>
   <body class="bg-slate-50 text-slate-800">
     <div id="root">Cargando aplicación...</div>
-    <!-- 5. Script principal de la aplicación, ahora como un módulo estándar -->
-    <!-- es-module-shims interceptará esto y usará el fetch hook.
-         La ruta es relativa y la etiqueta <base> la resolverá. -->
-    <script type="module" src="./index.tsx"></script>
+    <!-- El script principal se añade dinámicamente por el script anterior -->
   </body>
 </html>
