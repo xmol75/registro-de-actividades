@@ -1,35 +1,18 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App.tsx'; // This should point to the Surgical Logger App.tsx
+// Contenido temporal para diagnóstico.
+// RECUERDA RESTAURAR TU CÓDIGO ORIGINAL DESPUÉS DE ESTA PRUEBA.
+console.log("DIAGNÓSTICO: index.tsx cargado y procesado por el fetch hook (si todo va bien).");
 
-const rootElement = document.getElementById('root');
+// Exportar algo para que sea tratado como un módulo
+export const diagnosticMessage = "index.tsx (simplificado) fue ejecutado.";
 
-if (!rootElement) {
-  const errorMsg = "Error Crítico: No se pudo encontrar el elemento 'root' en el HTML. Verifica que tu index.html tenga un <div id=\"root\"></div> y que este script se ejecute después de que el DOM esté listo.";
-  document.body.innerHTML = `<div style="padding: 20px; font-family: sans-serif; color: red; background-color: #ffebee; border: 1px solid red;">
-    <h2>Error de Carga Crítico</h2>
-    <p>${errorMsg}</p>
-    <p>Por favor, revisa la consola del desarrollador (F12) para más detalles.</p>
-  </div>`;
-  console.error(errorMsg);
-  throw new Error(errorMsg);
-} else {
-  // Ahora intentamos renderizar la aplicación React
-  try {
-    const root = ReactDOM.createRoot(rootElement);
-    root.render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    );
-    console.log("Aplicación React renderizada o en proceso de renderización.");
-  } catch (error) {
-    console.error("Error al intentar renderizar la aplicación React:", error);
-    rootElement.innerHTML = `<div style="padding: 20px; font-family: sans-serif; color: red; background-color: #ffebee; border: 1px solid red;">
-      <h2>Error al Renderizar React</h2>
-      <p>Ocurrió un error al iniciar la aplicación React.</p>
-      <p><strong>Mensaje:</strong> ${(error as Error).message}</p>
-      <p>Por favor, revisa la consola del desarrollador (F12) para ver el stack trace completo y más detalles. Asegúrate de que todas las importaciones de archivos locales incluyan la extensión (.ts o .tsx).</p>
-    </div>`;
+// Intentar un console.error para ver si aparece si hay problemas después de la carga inicial
+try {
+  const rootElement = document.getElementById('root');
+  if (rootElement) {
+    rootElement.innerHTML = '<p style="padding: 20px; font-family: sans-serif; color: green;">DIAGNÓSTICO: index.tsx (simplificado) ejecutado. El siguiente paso es restaurar el index.tsx original.</p>';
+  } else {
+    console.error("DIAGNÓSTICO: No se encontró el elemento #root (desde index.tsx simplificado).");
   }
+} catch (e) {
+  console.error("DIAGNÓSTICO: Error en index.tsx simplificado:", e);
 }
